@@ -25,42 +25,77 @@ class SoundManager {
         }
     }
 
-    // --- Background Ambient Sound ---
+    // --- Advanced Meditative Space Melody ---
     playAmbient() {
         const ctx = this.getContext()
         if (this.ambientSource) return
 
+        // Base deep hum
         this.ambientSource = ctx.createOscillator()
         this.ambientFilter = ctx.createBiquadFilter()
-        const gainNode = ctx.createGain()
+        const ambientGain = ctx.createGain()
 
         this.ambientSource.type = 'sine'
-        this.ambientSource.frequency.setValueAtTime(40, ctx.currentTime) // Deep low hum
+        this.ambientSource.frequency.setValueAtTime(432, ctx.currentTime) // 432Hz for healing vibes
 
-        // Add subtle frequency modulation for "meditative" feel
+        // Complex modulation
         const lfo = ctx.createOscillator()
         const lfoGain = ctx.createGain()
-        lfo.frequency.setValueAtTime(0.1, ctx.currentTime)
-        lfoGain.gain.setValueAtTime(2, ctx.currentTime)
+        lfo.frequency.setValueAtTime(0.05, ctx.currentTime)
+        lfoGain.gain.setValueAtTime(1, ctx.currentTime)
         lfo.connect(lfoGain)
         lfoGain.connect(this.ambientSource.frequency)
         lfo.start()
 
         this.ambientFilter.type = 'lowpass'
         this.ambientFilter.frequency.setValueAtTime(200, ctx.currentTime)
-        this.ambientFilter.Q.setValueAtTime(1, ctx.currentTime)
+        this.ambientFilter.Q.setValueAtTime(0.5, ctx.currentTime)
 
-        gainNode.gain.setValueAtTime(0, ctx.currentTime)
-        gainNode.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 2)
+        ambientGain.gain.setValueAtTime(0, ctx.currentTime)
+        ambientGain.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 5)
 
         this.ambientSource.connect(this.ambientFilter)
-        this.ambientFilter.connect(gainNode)
-        gainNode.connect(this.masterGain!)
-
+        this.ambientFilter.connect(ambientGain)
+        ambientGain.connect(this.masterGain!)
         this.ambientSource.start()
+
+        // Add "Advanced Space Melody" - Sparse, ethereal notes
+        const playNote = (freq: number, startTime: number) => {
+            const o = ctx.createOscillator()
+            const g = ctx.createGain()
+            const f = ctx.createBiquadFilter()
+
+            o.type = 'triangle'
+            o.frequency.setValueAtTime(freq, startTime)
+
+            f.type = 'lowpass'
+            f.frequency.setValueAtTime(1500, startTime)
+            f.Q.setValueAtTime(1, startTime)
+
+            g.gain.setValueAtTime(0, startTime)
+            g.gain.linearRampToValueAtTime(0.02, startTime + 2)
+            g.gain.exponentialRampToValueAtTime(0.001, startTime + 8)
+
+            o.connect(f)
+            f.connect(g)
+            g.connect(this.masterGain!)
+
+            o.start(startTime)
+            o.stop(startTime + 8)
+        }
+
+        // Loop sparse notes
+        const notes = [432, 544, 648, 864, 324]
+        let nextTime = ctx.currentTime + 2
+        setInterval(() => {
+            if (ctx.state === 'running') {
+                const note = notes[Math.floor(Math.random() * notes.length)]
+                playNote(note, ctx.currentTime)
+            }
+        }, 12000)
     }
 
-    // --- Radar UI Sound ---
+    // --- Softer Radar UI Sound ---
     playRadarPing() {
         const ctx = this.getContext()
         this.resume()
@@ -69,43 +104,50 @@ class SoundManager {
         const gain = ctx.createGain()
         const filter = ctx.createBiquadFilter()
 
-        osc.type = 'sine'
-        osc.frequency.setValueAtTime(880, ctx.currentTime) // A5
-        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5)
+        // Triangle wave for a smoother, softer "glassy" timbre
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(1200, ctx.currentTime)
+        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 1.2)
 
-        filter.type = 'bandpass'
+        filter.type = 'highpass'
         filter.frequency.setValueAtTime(1000, ctx.currentTime)
-        filter.Q.setValueAtTime(5, ctx.currentTime)
+        filter.Q.setValueAtTime(1, ctx.currentTime)
 
-        gain.gain.setValueAtTime(0.1, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
+        gain.gain.setValueAtTime(0, ctx.currentTime)
+        gain.gain.linearRampToValueAtTime(0.03, ctx.currentTime + 0.1)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2)
 
         osc.connect(filter)
         filter.connect(gain)
         gain.connect(this.masterGain!)
 
         osc.start()
-        osc.stop(ctx.currentTime + 0.5)
+        osc.stop(ctx.currentTime + 1.2)
     }
 
-    // --- Game Sounds ---
+    // --- Subtler Shoot Sound ---
     playShoot() {
         const ctx = this.getContext()
         const osc = ctx.createOscillator()
         const gain = ctx.createGain()
+        const filter = ctx.createBiquadFilter()
 
-        osc.type = 'square' // More mechanical/retro
-        osc.frequency.setValueAtTime(400, ctx.currentTime)
-        osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.1)
+        osc.type = 'sine' // Softer than square
+        osc.frequency.setValueAtTime(300, ctx.currentTime)
+        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.1)
 
-        gain.gain.setValueAtTime(0.05, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
+        filter.type = 'lowpass'
+        filter.frequency.setValueAtTime(1500, ctx.currentTime)
 
-        osc.connect(gain)
+        gain.gain.setValueAtTime(0.03, ctx.currentTime) // Lower gain
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15)
+
+        osc.connect(filter)
+        filter.connect(gain)
         gain.connect(this.masterGain!)
 
         osc.start()
-        osc.stop(ctx.currentTime + 0.1)
+        osc.stop(ctx.currentTime + 0.15)
     }
 
     playExplosion() {
