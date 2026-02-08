@@ -6,9 +6,11 @@ import { Compass } from './Compass'
 import { StatusBars } from './StatusBars'
 import { Reticle } from './Reticle'
 import { ChapterIndicator } from './ChapterIndicator'
-import { ControlPanel } from './ControlPanel'
+import { useExperienceStore } from '@/stores/experience'
 
 export function HudRoot() {
+  const { isRadarView, toggleRadarView } = useExperienceStore()
+
   return (
     <div className="fixed inset-0 z-50 pointer-events-none flex flex-col p-[var(--space-md)]">
       {/* Corner brackets - responsive sizing */}
@@ -49,7 +51,18 @@ export function HudRoot() {
         </div>
 
         <div className="pointer-events-auto flex flex-col gap-3 w-full sm:w-auto">
-          <ControlPanel />
+          <motion.button
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 1.5 }}
+            onClick={toggleRadarView}
+            className={`w-full p-3 touch-target hud-text text-[var(--text-xs)] border transition-all duration-300 ${isRadarView
+              ? 'border-[var(--cyan-reactive)] bg-[var(--cyan-reactive)]/10 text-[var(--cyan-reactive)]'
+              : 'border-[var(--text-secondary)]/30 text-[var(--text-secondary)] hover:border-[var(--cyan-reactive)]/50'
+              }`}
+          >
+            {isRadarView ? '◉' : '○'} RADAR VISION
+          </motion.button>
 
           <motion.div
             initial={{ opacity: 0, x: 20 }}
