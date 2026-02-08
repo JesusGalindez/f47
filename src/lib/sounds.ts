@@ -3,32 +3,27 @@
 class SoundManager {
     private ctx: AudioContext | null = null
     private masterGain: GainNode | null = null
-    private ambientBuffer: AudioBuffer | null = null
-    private ambientSource: AudioBufferSourceNode | null = null
     private radarBuffer: AudioBuffer | null = null
     private gameMusicSource: OscillatorNode[] = []
     private gameMusicGains: GainNode[] = []
+    private ambientOscillators: OscillatorNode[] = []
+    private ambientGains: GainNode[] = []
+    private isAmbientPlaying = false
 
     constructor() {
         if (typeof window !== 'undefined') {
-            this.loadBuffers()
+            this.loadRadarSound()
         }
     }
 
-    private async loadBuffers() {
+    private async loadRadarSound() {
         const ctx = this.getContext()
         try {
-            // Load Radar
             const radarRes = await fetch('/sounds/radar.wav')
             const radarAB = await radarRes.arrayBuffer()
             this.radarBuffer = await ctx.decodeAudioData(radarAB)
-
-            // Load Ambient
-            const ambientRes = await fetch('/sounds/ambient.wav')
-            const ambientAB = await ambientRes.arrayBuffer()
-            this.ambientBuffer = await ctx.decodeAudioData(ambientAB)
         } catch (e) {
-            console.error('Failed to load sounds:', e)
+            console.error('Failed to load radar sound:', e)
         }
     }
 
@@ -37,7 +32,7 @@ class SoundManager {
             this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
             this.masterGain = this.ctx.createGain()
             this.masterGain.connect(this.ctx.destination)
-            this.masterGain.gain.setValueAtTime(0.5, this.ctx.currentTime)
+            this.masterGain.gain.setValueAtTime(0.20, this.ctx.currentTime) // Ultra subtle master
         }
         return this.ctx
     }
@@ -53,41 +48,150 @@ class SoundManager {
         }
     }
 
-    // --- Background Meditative Music (WAV File) ---
+    // --- Ultra-Minimal Ambient with Breathing Pauses ---
     playAmbient() {
         const ctx = this.getContext()
-        if (this.ambientSource || !this.ambientBuffer) return
+        if (this.isAmbientPlaying) return
+        this.isAmbientPlaying = true
 
-        const startSource = () => {
-            if (!this.ambientBuffer) return
+        // Breathing drone with long pauses - only fades in occasionally
+        const createBreathingDrone = () => {
+            const drone = ctx.createOscillator()
+            const droneGain = ctx.createGain()
+            const droneFilter = ctx.createBiquadFilter()
 
-            this.ambientSource = ctx.createBufferSource()
-            this.ambientSource.buffer = this.ambientBuffer
+            drone.type = 'sine'
+            drone.frequency.setValueAtTime(55, ctx.currentTime) // Very deep A1
 
-            const ambientGain = ctx.createGain()
-            ambientGain.gain.setValueAtTime(0, ctx.currentTime)
-            ambientGain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 4)
+            droneFilter.type = 'lowpass'
+            droneFilter.frequency.setValueAtTime(60, ctx.currentTime) // Even more filtered
+            droneFilter.Q.setValueAtTime(0.3, ctx.currentTime)
 
-            this.ambientSource.connect(ambientGain)
-            ambientGain.connect(this.masterGain!)
+            droneGain.gain.setValueAtTime(0, ctx.currentTime)
 
-            this.ambientSource.onended = () => {
-                this.ambientSource = null
-                // Wait 2 seconds before repeating as requested
-                setTimeout(() => {
-                    if (ctx.state === 'running') {
-                        startSource()
-                    }
-                }, 2000)
+            drone.connect(droneFilter)
+            droneFilter.connect(droneGain)
+            droneGain.connect(this.masterGain!)
+            drone.start()
+
+            this.ambientOscillators.push(drone)
+            this.ambientGains.push(droneGain)
+
+            // Breathing cycle: fade in over 15s, hold briefly, fade out over 15s, pause 40s
+            const breatheCycle = () => {
+                if (ctx.state !== 'running') return
+
+                const now = ctx.currentTime
+                droneGain.gain.cancelScheduledValues(now)
+                droneGain.gain.setValueAtTime(0, now)
+                droneGain.gain.linearRampToValueAtTime(0.012, now + 15) // Ultra quiet peak
+                droneGain.gain.setValueAtTime(0.012, now + 20) // Brief hold
+                droneGain.gain.linearRampToValueAtTime(0, now + 35) // Fade out
+
+                // Next breath after shorter pause (25-35 seconds total cycle)
+                setTimeout(breatheCycle, 25000 + Math.random() * 10000)
             }
 
-            this.ambientSource.start()
+            // Start first breath after 5 seconds
+            setTimeout(breatheCycle, 5000)
         }
 
-        startSource()
+        createBreathingDrone()
+
+        // Ethereal shimmer - appears rarely and fades in/out gently
+        const createBreathingShimmer = () => {
+            const shimmer = ctx.createOscillator()
+            const shimmerGain = ctx.createGain()
+            const shimmerFilter = ctx.createBiquadFilter()
+
+            shimmer.type = 'sine'
+            shimmer.frequency.setValueAtTime(432, ctx.currentTime)
+
+            // Very slow breathing LFO - even slower
+            const lfo = ctx.createOscillator()
+            const lfoGain = ctx.createGain()
+            lfo.frequency.setValueAtTime(0.008, ctx.currentTime) // Ultra ultra slow
+            lfoGain.gain.setValueAtTime(0.8, ctx.currentTime) // Less modulation
+            lfo.connect(lfoGain)
+            lfoGain.connect(shimmer.frequency)
+            lfo.start()
+
+            shimmerFilter.type = 'lowpass'
+            shimmerFilter.frequency.setValueAtTime(350, ctx.currentTime) // More filtered
+            shimmerFilter.Q.setValueAtTime(0.5, ctx.currentTime)
+
+            shimmerGain.gain.setValueAtTime(0, ctx.currentTime)
+
+            shimmer.connect(shimmerFilter)
+            shimmerFilter.connect(shimmerGain)
+            shimmerGain.connect(this.masterGain!)
+            shimmer.start()
+
+            this.ambientOscillators.push(shimmer, lfo)
+            this.ambientGains.push(shimmerGain)
+
+            // Shimmer breath cycle - even more sparse
+            const shimmerBreathe = () => {
+                if (ctx.state !== 'running') return
+
+                const now = ctx.currentTime
+                shimmerGain.gain.cancelScheduledValues(now)
+                shimmerGain.gain.setValueAtTime(0, now)
+                shimmerGain.gain.linearRampToValueAtTime(0.004, now + 12) // Barely audible
+                shimmerGain.gain.setValueAtTime(0.004, now + 18)
+                shimmerGain.gain.linearRampToValueAtTime(0, now + 30)
+
+                // Next shimmer after moderate pause (35-50 seconds)
+                setTimeout(shimmerBreathe, 35000 + Math.random() * 15000)
+            }
+
+            // First shimmer after 12 seconds
+            setTimeout(shimmerBreathe, 12000)
+        }
+
+        createBreathingShimmer()
+
+        // Very rare celestial notes - extremely sparse
+        const notes = [432, 540, 324] // Harmonically related (A=432Hz based)
+
+        const playNote = () => {
+            if (ctx.state !== 'running') return
+
+            const note = notes[Math.floor(Math.random() * notes.length)]
+            const osc = ctx.createOscillator()
+            const gain = ctx.createGain()
+            const filter = ctx.createBiquadFilter()
+
+            osc.type = 'sine'
+            osc.frequency.setValueAtTime(note, ctx.currentTime)
+
+            filter.type = 'lowpass'
+            filter.frequency.setValueAtTime(800, ctx.currentTime) // Softer
+            filter.Q.setValueAtTime(0.5, ctx.currentTime)
+
+            // Gentle envelope - audible but subtle
+            gain.gain.setValueAtTime(0, ctx.currentTime)
+            gain.gain.linearRampToValueAtTime(0.005, ctx.currentTime + 4) // Slightly louder
+            gain.gain.setValueAtTime(0.005, ctx.currentTime + 8) // Hold
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 18) // Moderate fade
+
+            osc.connect(filter)
+            filter.connect(gain)
+            gain.connect(this.masterGain!)
+
+            osc.start()
+            osc.stop(ctx.currentTime + 18)
+
+            // Moderate spacing - 20-35 seconds between notes
+            const nextDelay = 20000 + Math.random() * 15000
+            setTimeout(playNote, nextDelay)
+        }
+
+        // First note after 15 seconds
+        setTimeout(playNote, 15000)
     }
 
-    // --- Rhythmic Game Music (Procedural) ---
+    // --- Rhythmic Game Music ---
     playGameMusic() {
         const ctx = this.getContext()
         if (this.gameMusicSource.length > 0) return
@@ -116,8 +220,8 @@ class SoundManager {
             }, 200)
         }
 
-        playPulse(60, [1, 0, 1, 0, 1, 0, 1, 0], 0.2)
-        playPulse(864, [0, 0, 1, 0, 0, 1, 0, 1], 0.04)
+        playPulse(60, [1, 0, 1, 0, 1, 0, 1, 0], 0.12) // Reduced
+        playPulse(864, [0, 0, 1, 0, 0, 1, 0, 1], 0.02) // Reduced
     }
 
     stopGameMusic() {
@@ -126,7 +230,7 @@ class SoundManager {
         this.gameMusicGains = []
     }
 
-    // --- External Radar Sound (Softer) ---
+    // --- Radar Sound ---
     playRadarPing() {
         const ctx = this.getContext()
         this.resume()
@@ -135,10 +239,7 @@ class SoundManager {
             const source = ctx.createBufferSource()
             source.buffer = this.radarBuffer
             const gain = ctx.createGain()
-
-            // Reduced volume to be "soafter" as requested
-            gain.gain.setValueAtTime(0.15, ctx.currentTime)
-
+            gain.gain.setValueAtTime(0.12, ctx.currentTime)
             source.connect(gain)
             gain.connect(this.masterGain!)
             source.start()
@@ -148,7 +249,7 @@ class SoundManager {
             osc.type = 'triangle'
             osc.frequency.setValueAtTime(1200, ctx.currentTime)
             osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 1.2)
-            gain.gain.setValueAtTime(0.05, ctx.currentTime)
+            gain.gain.setValueAtTime(0.04, ctx.currentTime)
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2)
             osc.connect(gain)
             gain.connect(this.masterGain!)
@@ -169,7 +270,7 @@ class SoundManager {
         osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.1)
         filter.type = 'lowpass'
         filter.frequency.setValueAtTime(2500, ctx.currentTime)
-        gain.gain.setValueAtTime(0.15, ctx.currentTime)
+        gain.gain.setValueAtTime(0.1, ctx.currentTime)
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15)
 
         osc.connect(filter)
@@ -194,7 +295,7 @@ class SoundManager {
         filter.type = 'lowpass'
         filter.frequency.setValueAtTime(800, ctx.currentTime)
         filter.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.4)
-        gain.gain.setValueAtTime(0.3, ctx.currentTime)
+        gain.gain.setValueAtTime(0.2, ctx.currentTime)
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
         source.connect(filter)
         filter.connect(gain)
@@ -209,7 +310,7 @@ class SoundManager {
         osc.type = 'triangle'
         osc.frequency.setValueAtTime(200, ctx.currentTime)
         osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.3)
-        g.gain.setValueAtTime(0.2, ctx.currentTime)
+        g.gain.setValueAtTime(0.15, ctx.currentTime)
         g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
         osc.connect(g)
         g.connect(this.masterGain!)
