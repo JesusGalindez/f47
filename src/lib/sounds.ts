@@ -3,27 +3,32 @@
 class SoundManager {
     private ctx: AudioContext | null = null
     private masterGain: GainNode | null = null
-    private ambientSource: OscillatorNode | null = null
-    private ambientFilter: BiquadFilterNode | null = null
-    private droneSource: OscillatorNode | null = null
+    private ambientBuffer: AudioBuffer | null = null
+    private ambientSource: AudioBufferSourceNode | null = null
     private radarBuffer: AudioBuffer | null = null
     private gameMusicSource: OscillatorNode[] = []
     private gameMusicGains: GainNode[] = []
 
     constructor() {
         if (typeof window !== 'undefined') {
-            this.loadRadarSound()
+            this.loadBuffers()
         }
     }
 
-    private async loadRadarSound() {
+    private async loadBuffers() {
         const ctx = this.getContext()
         try {
-            const response = await fetch('/sounds/radar.wav')
-            const arrayBuffer = await response.arrayBuffer()
-            this.radarBuffer = await ctx.decodeAudioData(arrayBuffer)
+            // Load Radar
+            const radarRes = await fetch('/sounds/radar.wav')
+            const radarAB = await radarRes.arrayBuffer()
+            this.radarBuffer = await ctx.decodeAudioData(radarAB)
+
+            // Load Ambient
+            const ambientRes = await fetch('/sounds/ambient.wav')
+            const ambientAB = await ambientRes.arrayBuffer()
+            this.ambientBuffer = await ctx.decodeAudioData(ambientAB)
         } catch (e) {
-            console.error('Failed to load radar sound:', e)
+            console.error('Failed to load sounds:', e)
         }
     }
 
@@ -48,88 +53,25 @@ class SoundManager {
         }
     }
 
-    // --- Advanced Meditative Space Melody ---
+    // --- Background Meditative Music (WAV File) ---
     playAmbient() {
         const ctx = this.getContext()
-        if (this.ambientSource) return
+        if (this.ambientSource || !this.ambientBuffer) return
 
-        // Layer 1: Base hum (432Hz)
-        this.ambientSource = ctx.createOscillator()
-        this.ambientFilter = ctx.createBiquadFilter()
+        this.ambientSource = ctx.createBufferSource()
+        this.ambientSource.buffer = this.ambientBuffer
+        this.ambientSource.loop = true
+
         const ambientGain = ctx.createGain()
-
-        this.ambientSource.type = 'sine'
-        this.ambientSource.frequency.setValueAtTime(432, ctx.currentTime)
-
-        const lfo = ctx.createOscillator()
-        const lfoGain = ctx.createGain()
-        lfo.frequency.setValueAtTime(0.05, ctx.currentTime)
-        lfoGain.gain.setValueAtTime(2, ctx.currentTime)
-        lfo.connect(lfoGain)
-        lfoGain.connect(this.ambientSource.frequency)
-        lfo.start()
-
-        this.ambientFilter.type = 'lowpass'
-        this.ambientFilter.frequency.setValueAtTime(300, ctx.currentTime)
-        this.ambientFilter.Q.setValueAtTime(0.5, ctx.currentTime)
-
         ambientGain.gain.setValueAtTime(0, ctx.currentTime)
-        ambientGain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 3)
+        ambientGain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 4) // Smooth fade in
 
-        this.ambientSource.connect(this.ambientFilter)
-        this.ambientFilter.connect(ambientGain)
+        this.ambientSource.connect(ambientGain)
         ambientGain.connect(this.masterGain!)
         this.ambientSource.start()
-
-        // Layer 2: Deep Drone (Sub)
-        this.droneSource = ctx.createOscillator()
-        const droneGain = ctx.createGain()
-        this.droneSource.type = 'sine'
-        this.droneSource.frequency.setValueAtTime(55, ctx.currentTime)
-        droneGain.gain.setValueAtTime(0, ctx.currentTime)
-        droneGain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 10)
-
-        this.droneSource.connect(droneGain)
-        droneGain.connect(this.masterGain!)
-        this.droneSource.start()
-
-        // Layer 3: Ethereal Notes
-        const playNote = (freq: number, startTime: number) => {
-            const o = ctx.createOscillator()
-            const g = ctx.createGain()
-            const f = ctx.createBiquadFilter()
-
-            o.type = 'triangle'
-            o.frequency.setValueAtTime(freq, startTime)
-
-            f.type = 'lowpass'
-            f.frequency.setValueAtTime(1000, startTime)
-            f.Q.setValueAtTime(2, startTime)
-
-            g.gain.setValueAtTime(0, startTime)
-            g.gain.linearRampToValueAtTime(0.05, startTime + 2)
-            g.gain.exponentialRampToValueAtTime(0.001, startTime + 10)
-
-            o.connect(f)
-            f.connect(g)
-            g.connect(this.masterGain!)
-
-            o.start(startTime)
-            o.stop(startTime + 10)
-        }
-
-        const notes = [432, 544, 648, 864, 324]
-        const intervalId = setInterval(() => {
-            if (ctx.state === 'running') {
-                const note = notes[Math.floor(Math.random() * notes.length)]
-                playNote(note, ctx.currentTime)
-            } else if (ctx.state === 'closed') {
-                clearInterval(intervalId)
-            }
-        }, 5000)
     }
 
-    // --- Rhythmic Game Music ---
+    // --- Rhythmic Game Music (Procedural) ---
     playGameMusic() {
         const ctx = this.getContext()
         if (this.gameMusicSource.length > 0) return
@@ -158,9 +100,7 @@ class SoundManager {
             }, 200)
         }
 
-        // Pulse 1: Bass
         playPulse(60, [1, 0, 1, 0, 1, 0, 1, 0], 0.2)
-        // Pulse 2: Ethereal high syncopation
         playPulse(864, [0, 0, 1, 0, 0, 1, 0, 1], 0.04)
     }
 
@@ -170,7 +110,7 @@ class SoundManager {
         this.gameMusicGains = []
     }
 
-    // --- External Radar Sound ---
+    // --- External Radar Sound (Softer) ---
     playRadarPing() {
         const ctx = this.getContext()
         this.resume()
@@ -179,7 +119,10 @@ class SoundManager {
             const source = ctx.createBufferSource()
             source.buffer = this.radarBuffer
             const gain = ctx.createGain()
-            gain.gain.setValueAtTime(0.7, ctx.currentTime)
+
+            // Reduced volume to be "soafter" as requested
+            gain.gain.setValueAtTime(0.15, ctx.currentTime)
+
             source.connect(gain)
             gain.connect(this.masterGain!)
             source.start()
@@ -189,7 +132,7 @@ class SoundManager {
             osc.type = 'triangle'
             osc.frequency.setValueAtTime(1200, ctx.currentTime)
             osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 1.2)
-            gain.gain.setValueAtTime(0.15, ctx.currentTime)
+            gain.gain.setValueAtTime(0.05, ctx.currentTime)
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2)
             osc.connect(gain)
             gain.connect(this.masterGain!)
@@ -246,14 +189,14 @@ class SoundManager {
     playPowerUp() {
         const ctx = this.getContext()
         const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
+        const g = ctx.createGain()
         osc.type = 'triangle'
         osc.frequency.setValueAtTime(200, ctx.currentTime)
         osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.3)
-        gain.gain.setValueAtTime(0.2, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
-        osc.connect(gain)
-        gain.connect(this.masterGain!)
+        g.gain.setValueAtTime(0.2, ctx.currentTime)
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+        osc.connect(g)
+        g.connect(this.masterGain!)
         osc.start()
         osc.stop(ctx.currentTime + 0.3)
     }
