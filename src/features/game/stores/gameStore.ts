@@ -65,8 +65,8 @@ interface GameState {
   saveScore: (name: string) => void
   setControlMode: (mode: 'keyboard' | 'mouse' | 'gyro') => void
   setTilt: (x: number, y: number) => void
-  setTouchInput: (x: number, z: number) => void
-  setGyroInput: (x: number, z: number) => void
+  setTouchInput: (x: number | null, z: number | null) => void
+  setGyroInput: (x: number | null, z: number | null) => void
 }
 
 function createDefaultPlayer(): PlayerState {
@@ -189,8 +189,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setControlMode: (mode) => set({ controlMode: mode }),
   setTilt: (x, y) => set({ tiltX: x, tiltY: y }),
-  setTouchInput: (x, z) => set({ touchTarget: { x, z } }),
-  setGyroInput: (x, z) => set({ gyroTarget: { x, z } }),
+  setTouchInput: (x, z) =>
+    set({ touchTarget: x !== null && z !== null ? { x, z } : null }),
+  setGyroInput: (x, z) =>
+    set({ gyroTarget: x !== null && z !== null ? { x, z } : null }),
 
   update: (delta) => {
     const state = get()

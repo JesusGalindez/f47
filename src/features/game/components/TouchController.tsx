@@ -47,6 +47,7 @@ export function TouchController() {
 
   const handleTouchEnd = useCallback(() => {
     touchStartRef.current = null
+    useGameStore.getState().setTouchInput(null, null)
   }, [])
 
   useEffect(() => {
