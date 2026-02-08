@@ -58,17 +58,33 @@ class SoundManager {
         const ctx = this.getContext()
         if (this.ambientSource || !this.ambientBuffer) return
 
-        this.ambientSource = ctx.createBufferSource()
-        this.ambientSource.buffer = this.ambientBuffer
-        this.ambientSource.loop = true
+        const startSource = () => {
+            if (!this.ambientBuffer) return
 
-        const ambientGain = ctx.createGain()
-        ambientGain.gain.setValueAtTime(0, ctx.currentTime)
-        ambientGain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 4) // Smooth fade in
+            this.ambientSource = ctx.createBufferSource()
+            this.ambientSource.buffer = this.ambientBuffer
 
-        this.ambientSource.connect(ambientGain)
-        ambientGain.connect(this.masterGain!)
-        this.ambientSource.start()
+            const ambientGain = ctx.createGain()
+            ambientGain.gain.setValueAtTime(0, ctx.currentTime)
+            ambientGain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 4)
+
+            this.ambientSource.connect(ambientGain)
+            ambientGain.connect(this.masterGain!)
+
+            this.ambientSource.onended = () => {
+                this.ambientSource = null
+                // Wait 2 seconds before repeating as requested
+                setTimeout(() => {
+                    if (ctx.state === 'running') {
+                        startSource()
+                    }
+                }, 2000)
+            }
+
+            this.ambientSource.start()
+        }
+
+        startSource()
     }
 
     // --- Rhythmic Game Music (Procedural) ---
