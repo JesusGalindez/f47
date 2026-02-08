@@ -18,8 +18,28 @@ import { MobileHUD } from './MobileHUD'
 import { GameHUD } from './GameHUD'
 import { GameMenu } from './GameMenu'
 import { useGameStore } from '../stores/gameStore'
+import { soundManager } from '@/lib/sounds'
 
 export function GameCanvas() {
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      soundManager.resume()
+      window.removeEventListener('click', handleFirstInteraction)
+      window.removeEventListener('touchstart', handleFirstInteraction)
+      window.removeEventListener('keydown', handleFirstInteraction)
+    }
+
+    window.addEventListener('click', handleFirstInteraction)
+    window.addEventListener('touchstart', handleFirstInteraction)
+    window.addEventListener('keydown', handleFirstInteraction)
+
+    return () => {
+      window.removeEventListener('click', handleFirstInteraction)
+      window.removeEventListener('touchstart', handleFirstInteraction)
+      window.removeEventListener('keydown', handleFirstInteraction)
+    }
+  }, [])
+
   const setKey = useGameStore((s) => s.setKey)
   const phase = useGameStore((s) => s.phase)
   const pauseGame = useGameStore((s) => s.pauseGame)
@@ -46,6 +66,14 @@ export function GameCanvas() {
     },
     [setKey]
   )
+
+  useEffect(() => {
+    if (phase === 'playing' || phase === 'boss-warning') {
+      soundManager.playGameMusic()
+    } else {
+      soundManager.stopGameMusic()
+    }
+  }, [phase])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
