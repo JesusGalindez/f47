@@ -1,0 +1,186 @@
+@import "tailwindcss";
+
+:root {
+  --cyan-reactive: #00f0ff;
+  --orange-tactical: #ff6a00;
+  --bg-dark: #0a0a0f;
+  --bg-panel: rgba(10, 10, 15, 0.85);
+  --grid-line: rgba(0, 240, 255, 0.06);
+  --text-primary: #e0e0e0;
+  --text-secondary: #8899aa;
+  --danger: #ff2040;
+
+  /* Fluid Typography Scale (12px to 16px for base) */
+  --text-xs: clamp(0.625rem, 0.5847rem + 0.2016vw, 0.75rem); /* 10px -> 12px */
+  --text-sm: clamp(0.75rem, 0.7097rem + 0.2016vw, 0.875rem);  /* 12px -> 14px */
+  --text-base: clamp(0.875rem, 0.8347rem + 0.2016vw, 1rem);   /* 14px -> 16px */
+  --text-lg: clamp(1rem, 0.9597rem + 0.2016vw, 1.125rem);    /* 16px -> 18px */
+  --text-xl: clamp(1.25rem, 1.1694rem + 0.4032vw, 1.5rem);   /* 20px -> 24px */
+  --text-2xl: clamp(1.5rem, 1.3387rem + 0.8065vw, 2rem);     /* 24px -> 32px */
+  
+  /* Fluid Spacing Scale */
+  --space-xs: clamp(0.25rem, 0.2097rem + 0.2016vw, 0.375rem);
+  --space-sm: clamp(0.5rem, 0.4597rem + 0.2016vw, 0.625rem);
+  --space-md: clamp(1rem, 0.9194rem + 0.4032vw, 1.25rem);
+  --space-lg: clamp(1.5rem, 1.3387rem + 0.8065vw, 2rem);
+  --space-xl: clamp(2rem, 1.6774rem + 1.6129vw, 3rem);
+}
+
+@theme inline {
+  --color-cyan-reactive: var(--cyan-reactive);
+  --color-orange-tactical: var(--orange-tactical);
+  --color-bg-dark: var(--bg-dark);
+  --color-bg-panel: var(--bg-panel);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-danger: var(--danger);
+}
+
+/* ── Base ─────────────────────────────────────────── */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas,
+    "DejaVu Sans Mono", monospace;
+  overflow-x: hidden;
+}
+
+/* ── Grid background ─────────────────────────────── */
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ── Scanline overlay ────────────────────────────── */
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.04) 2px,
+    rgba(0, 0, 0, 0.04) 4px
+  );
+  animation: scanline-scroll 8s linear infinite;
+}
+
+@keyframes scanline-scroll {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 100vh;
+  }
+}
+
+/* ── Scrollbar ───────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--cyan-reactive);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--cyan-reactive) 80%, white);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cyan-reactive) var(--bg-dark);
+}
+
+/* ── HUD Utilities ───────────────────────────────── */
+
+.hud-border {
+  border: 1px solid var(--cyan-reactive);
+  box-shadow:
+    0 0 6px rgba(0, 240, 255, 0.25),
+    inset 0 0 6px rgba(0, 240, 255, 0.08);
+}
+
+.hud-text {
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas,
+    "DejaVu Sans Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-shadow:
+    0 0 4px rgba(0, 0, 0, 0.9),
+    0 0 8px rgba(0, 0, 0, 0.7),
+    0 1px 2px rgba(0, 0, 0, 1);
+}
+
+.hud-text-glow {
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas,
+    "DejaVu Sans Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-shadow:
+    0 0 4px rgba(0, 0, 0, 0.9),
+    0 0 8px rgba(0, 0, 0, 0.7),
+    0 0 12px currentColor,
+    0 0 24px currentColor;
+}
+
+.hud-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--cyan-reactive);
+  box-shadow:
+    0 0 6px rgba(0, 240, 255, 0.25),
+    inset 0 0 6px rgba(0, 240, 255, 0.08);
+}
+
+/* ── Modern Layout Utilities ─────────────────────── */
+
+.adaptive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--min-width, 300px), 100%), 1fr));
+  gap: var(--space-md);
+}
+
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Mobile-optimized viewport height */
+.h-dynamic-screen {
+  height: 100dvh;
+}
+
+/* Content visibility optimization */
+.responsive-hide {
+  @media (max-width: 640px) {
+    display: none;
+  }
+}
