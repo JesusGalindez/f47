@@ -5,12 +5,18 @@ import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { useGameStore } from '../stores/gameStore'
+import { soundManager } from '@/lib/sounds'
 
 const MODEL_PATH = '/models/f47.glb'
 
 export function PlayerShip() {
   const groupRef = useRef<THREE.Group>(null)
   const { scene } = useGLTF(MODEL_PATH)
+  const player = useGameStore((s) => s.player)
+
+  const lastShootCooldown = useRef(0)
+  const lastWeaponLevel = useRef(1)
+  const lastShieldHp = useRef(0)
 
   const clonedScene = useMemo(() => scene.clone(true), [scene])
 
@@ -45,12 +51,26 @@ export function PlayerShip() {
   useFrame(() => {
     if (!groupRef.current) return
     const g = groupRef.current
-    const player = useGameStore.getState().player
-    const keys = useGameStore.getState().keys
+    const state = useGameStore.getState()
+    const player = state.player
+    const keys = state.keys
 
     g.position.x = THREE.MathUtils.lerp(g.position.x, player.position.x, 0.15)
     g.position.z = THREE.MathUtils.lerp(g.position.z, player.position.z, 0.15)
     g.position.y = 0
+
+    // Sound Triggers
+    if (player.shootCooldown > lastShootCooldown.current && lastShootCooldown.current <= 0) {
+      soundManager.playShoot()
+    }
+    lastShootCooldown.current = player.shootCooldown
+
+    if (player.weaponLevel > lastWeaponLevel.current || player.shieldHp > lastShieldHp.current) {
+      soundManager.playPowerUp()
+      soundManager.resume()
+    }
+    lastWeaponLevel.current = player.weaponLevel
+    lastShieldHp.current = player.shieldHp
 
     const tiltX =
       (keys['ArrowUp'] || keys['w'] ? 0.3 : 0) - (keys['ArrowDown'] || keys['s'] ? 0.3 : 0)
@@ -101,7 +121,7 @@ function PlayerDrones() {
 
   return (
     <>
-      {drones.map((drone) => (
+      {drones.map((drone: any) => (
         <group key={drone.id} position={[drone.offset.x, drone.offset.y, drone.offset.z]}>
           <mesh>
             <octahedronGeometry args={[0.2]} />

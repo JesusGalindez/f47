@@ -7,12 +7,23 @@ import { StatusBars } from './StatusBars'
 import { Reticle } from './Reticle'
 import { ChapterIndicator } from './ChapterIndicator'
 import { useExperienceStore } from '@/stores/experience'
+import { soundManager } from '@/lib/sounds'
 
 export function HudRoot() {
   const { isRadarView, toggleRadarView } = useExperienceStore()
 
+  const handleToggleRadar = () => {
+    soundManager.resume()
+    soundManager.playAmbient()
+    soundManager.playRadarPing()
+    toggleRadarView()
+  }
+
   return (
-    <div className="fixed inset-0 z-50 pointer-events-none flex flex-col p-[var(--space-md)]">
+    <div
+      className="fixed inset-0 z-50 pointer-events-none flex flex-col p-[var(--space-md)]"
+      onPointerDown={() => soundManager.resume()}
+    >
       {/* Corner brackets - responsive sizing */}
       <div className="absolute top-[var(--space-sm)] left-[var(--space-sm)] w-[var(--space-lg)] h-[var(--space-lg)] border-t-2 border-l-2 border-[var(--cyan-reactive)] opacity-30" />
       <div className="absolute top-[var(--space-sm)] right-[var(--space-sm)] w-[var(--space-lg)] h-[var(--space-lg)] border-t-2 border-r-2 border-[var(--cyan-reactive)] opacity-30" />
@@ -55,8 +66,8 @@ export function HudRoot() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 1.5 }}
-            onClick={toggleRadarView}
-            className={`w-full p-3 touch-target hud-text text-[var(--text-xs)] border transition-all duration-300 ${isRadarView
+            onClick={handleToggleRadar}
+            className={`w-full p-3 touch-target hud-text text-[var(--text-xs)] border transition-all duration-300 pointer-events-auto ${isRadarView
               ? 'border-[var(--cyan-reactive)] bg-[var(--cyan-reactive)]/10 text-[var(--cyan-reactive)]'
               : 'border-[var(--text-secondary)]/30 text-[var(--text-secondary)] hover:border-[var(--cyan-reactive)]/50'
               }`}

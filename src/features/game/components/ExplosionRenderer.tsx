@@ -1,9 +1,19 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { useGameStore } from '../stores/gameStore'
+import { soundManager } from '@/lib/sounds'
 
 export function ExplosionRenderer() {
   const explosions = useGameStore((s) => s.explosions)
+  const lastCount = useRef(0)
+
+  useEffect(() => {
+    if (explosions.length > lastCount.current) {
+      soundManager.playExplosion()
+    }
+    lastCount.current = explosions.length
+  }, [explosions.length])
 
   return (
     <>
