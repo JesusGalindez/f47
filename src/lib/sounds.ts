@@ -7,6 +7,24 @@ class SoundManager {
     private masterGain: GainNode | null = null
     private ambientSource: OscillatorNode | null = null
     private ambientFilter: BiquadFilterNode | null = null
+    private radarBuffer: AudioBuffer | null = null
+
+    constructor() {
+        if (typeof window !== 'undefined') {
+            this.loadRadarSound()
+        }
+    }
+
+    private async loadRadarSound() {
+        const ctx = this.getContext()
+        try {
+            const response = await fetch('/sounds/radar.wav')
+            const arrayBuffer = await response.arrayBuffer()
+            this.radarBuffer = await ctx.decodeAudioData(arrayBuffer)
+        } catch (e) {
+            console.error('Failed to load radar sound:', e)
+        }
+    }
 
     private getContext(): AudioContext {
         if (!this.ctx) {
@@ -23,6 +41,8 @@ class SoundManager {
         if (ctx.state === 'suspended') {
             ctx.resume()
         }
+        // Automatically start ambient on first resume interaction
+        this.playAmbient()
     }
 
     // --- Advanced Meditative Space Melody ---
@@ -36,9 +56,8 @@ class SoundManager {
         const ambientGain = ctx.createGain()
 
         this.ambientSource.type = 'sine'
-        this.ambientSource.frequency.setValueAtTime(432, ctx.currentTime) // 432Hz for healing vibes
+        this.ambientSource.frequency.setValueAtTime(432, ctx.currentTime)
 
-        // Complex modulation
         const lfo = ctx.createOscillator()
         const lfoGain = ctx.createGain()
         lfo.frequency.setValueAtTime(0.05, ctx.currentTime)
@@ -52,7 +71,7 @@ class SoundManager {
         this.ambientFilter.Q.setValueAtTime(0.5, ctx.currentTime)
 
         ambientGain.gain.setValueAtTime(0, ctx.currentTime)
-        ambientGain.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 5)
+        ambientGain.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 5) // Soft fade in
 
         this.ambientSource.connect(this.ambientFilter)
         this.ambientFilter.connect(ambientGain)
@@ -73,7 +92,7 @@ class SoundManager {
             f.Q.setValueAtTime(1, startTime)
 
             g.gain.setValueAtTime(0, startTime)
-            g.gain.linearRampToValueAtTime(0.02, startTime + 2)
+            g.gain.linearRampToValueAtTime(0.015, startTime + 2)
             g.gain.exponentialRampToValueAtTime(0.001, startTime + 8)
 
             o.connect(f)
@@ -86,7 +105,6 @@ class SoundManager {
 
         // Loop sparse notes
         const notes = [432, 544, 648, 864, 324]
-        let nextTime = ctx.currentTime + 2
         setInterval(() => {
             if (ctx.state === 'running') {
                 const note = notes[Math.floor(Math.random() * notes.length)]
@@ -95,34 +113,35 @@ class SoundManager {
         }, 12000)
     }
 
-    // --- Softer Radar UI Sound ---
+    // --- External Radar Sound ---
     playRadarPing() {
         const ctx = this.getContext()
         this.resume()
 
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        const filter = ctx.createBiquadFilter()
+        if (this.radarBuffer) {
+            const source = ctx.createBufferSource()
+            source.buffer = this.radarBuffer
+            const gain = ctx.createGain()
 
-        // Triangle wave for a smoother, softer "glassy" timbre
-        osc.type = 'triangle'
-        osc.frequency.setValueAtTime(1200, ctx.currentTime)
-        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 1.2)
+            gain.gain.setValueAtTime(0.4, ctx.currentTime) // Adjust as needed
 
-        filter.type = 'highpass'
-        filter.frequency.setValueAtTime(1000, ctx.currentTime)
-        filter.Q.setValueAtTime(1, ctx.currentTime)
-
-        gain.gain.setValueAtTime(0, ctx.currentTime)
-        gain.gain.linearRampToValueAtTime(0.03, ctx.currentTime + 0.1)
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2)
-
-        osc.connect(filter)
-        filter.connect(gain)
-        gain.connect(this.masterGain!)
-
-        osc.start()
-        osc.stop(ctx.currentTime + 1.2)
+            source.connect(gain)
+            gain.connect(this.masterGain!)
+            source.start()
+        } else {
+            // Fallback to legacy soft ping if buffer not loaded
+            const osc = ctx.createOscillator()
+            const gain = ctx.createGain()
+            osc.type = 'triangle'
+            osc.frequency.setValueAtTime(1200, ctx.currentTime)
+            osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 1.2)
+            gain.gain.setValueAtTime(0.03, ctx.currentTime)
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2)
+            osc.connect(gain)
+            gain.connect(this.masterGain!)
+            osc.start()
+            osc.stop(ctx.currentTime + 1.2)
+        }
     }
 
     // --- Subtler Shoot Sound ---
