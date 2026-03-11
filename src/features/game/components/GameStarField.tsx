@@ -46,8 +46,8 @@ export function GameStarField() {
   useFrame((state, delta) => {
     const isPlaying = phase === 'playing' || phase === 'boss-warning'
     const isGameOver = phase === 'gameover'
-    // Target base speeds
-    const targetSpeed = (isPlaying || isGameOver) ? 0.6 : 0.1
+    // Target base speeds - Reduced to address reported acceleration
+    const targetSpeed = (isPlaying || isGameOver) ? 0.3 : 0.05
 
     // Smoothly transition the speed over time
     currentSpeed.current = THREE.MathUtils.lerp(currentSpeed.current, targetSpeed, delta * 2)
