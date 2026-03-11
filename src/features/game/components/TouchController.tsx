@@ -12,6 +12,12 @@ export function TouchController() {
   const handleTouchStart = useCallback(
     (e: TouchEvent) => {
       if (phase !== 'playing') return
+
+      // Ignore if touching a UI button
+      if ((e.target as HTMLElement).closest('[data-ui-button]')) {
+        return
+      }
+
       e.preventDefault()
       const touch = e.touches[0]
       const player = useGameStore.getState().player
