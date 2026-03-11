@@ -70,8 +70,8 @@ interface GameState {
   gameOver: () => void
   setKey: (key: string, down: boolean) => void
   update: (delta: number) => void
-  getLeaderboard: () => { name: string; score: number; level: number; wave: number; date: string }[]
-  saveScore: (name: string) => void
+  getLeaderboard: () => Promise<{ name: string; score: number; level: number; wave: number; date: string }[]>
+  saveScore: (name: string) => Promise<void>
   setControlMode: (mode: 'keyboard' | 'mouse' | 'gyro') => void
   setTilt: (x: number, y: number) => void
   setTouchInput: (x: number | null, z: number | null) => void
@@ -198,7 +198,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((s) => ({ keys: { ...s.keys, [key]: down } }))
   },
 
-  getLeaderboard: () => {
+  getLeaderboard: async () => {
+    try {
+      const res = await fetch('/api/leaderboard')
+      if (res.ok) {
+        const data = await res.json()
+        return data || []
+      }
+    } catch {
+      // Fallback
+    }
+
     try {
       const data = localStorage.getItem('f47-leaderboard')
       return data ? JSON.parse(data) : []
@@ -207,16 +217,29 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
-  saveScore: (name) => {
+  saveScore: async (name) => {
     const state = get()
-    const board = state.getLeaderboard()
-    board.push({
+
+    const record = {
       name,
       score: state.score,
       level: state.level,
       wave: state.wave,
       date: new Date().toISOString(),
-    })
+    }
+
+    try {
+      await fetch('/api/leaderboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record),
+      })
+    } catch (e) {
+      // Ignore API failure and save locally anyway
+    }
+
+    const board = await state.getLeaderboard()
+    board.push(record)
     board.sort((a: { score: number }, b: { score: number }) => b.score - a.score)
     localStorage.setItem('f47-leaderboard', JSON.stringify(board.slice(0, 10)))
   },

@@ -8,11 +8,23 @@ import Link from 'next/link'
 
 function Leaderboard() {
   const getLeaderboard = useGameStore((s) => s.getLeaderboard)
-  const [board, setBoard] = useState<ReturnType<typeof getLeaderboard>>([])
+  const [board, setBoard] = useState<Awaited<ReturnType<typeof getLeaderboard>>>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setBoard(getLeaderboard())
+    getLeaderboard().then((data) => {
+      setBoard(data)
+      setLoading(false)
+    })
   }, [getLeaderboard])
+
+  if (loading) {
+    return (
+      <div className="hud-text text-xs text-[var(--cyan-reactive)] text-center py-4 animate-pulse">
+        LOADING RANKING...
+      </div>
+    )
+  }
 
   if (board.length === 0) {
     return (
