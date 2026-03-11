@@ -182,7 +182,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   resetToMenu: () => {
-    set({ phase: 'menu' })
+    set({
+      phase: 'menu',
+      screenShake: 0,
+      nukeFlashTimer: 0,
+      player: createDefaultPlayer(get().upgrades),
+    })
   },
 
   gameOver: () => {
