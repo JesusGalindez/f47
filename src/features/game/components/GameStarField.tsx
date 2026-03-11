@@ -43,8 +43,9 @@ export function GameStarField() {
 
   useFrame((state) => {
     const isPlaying = phase === 'playing' || phase === 'boss-warning'
-    // Increase speed while playing to give a sensation of zooming forward
-    const speedMultiplier = isPlaying ? 0.6 : 0.1
+    const isGameOver = phase === 'gameover'
+    // Maintain a steady movement during gameplay, boss warning, and game over
+    const speedMultiplier = (isPlaying || isGameOver) ? 0.6 : 0.1
 
     if (pointsRef1.current) {
       const posAttr = pointsRef1.current.geometry.attributes.position as THREE.BufferAttribute
