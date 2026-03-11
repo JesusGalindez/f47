@@ -6,56 +6,89 @@ import * as THREE from 'three'
 import { useGameStore } from '../stores/gameStore'
 
 export function GameStarField() {
-  const pointsRef = useRef<THREE.Points>(null)
+  const pointsRef1 = useRef<THREE.Points>(null)
+  const pointsRef2 = useRef<THREE.Points>(null)
   const phase = useGameStore((s) => s.phase)
-  const count = 3000
 
-  const geometry = useMemo(() => {
+  // High performance, two-layer starfield gives depth without straining CPU
+  const count1 = 1500
+  const count2 = 1500
+
+  const createLayer = (count: number, zRange: number, yOffset: number) => {
     const geo = new THREE.BufferGeometry()
     const positions = new Float32Array(count * 3)
     const colors = new Float32Array(count * 3)
-    const sizes = new Float32Array(count)
 
     for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 50
-      positions[i * 3 + 1] = -1 - Math.random() * 5
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 60
+      positions[i * 3] = (Math.random() - 0.5) * 80 // X
+      positions[i * 3 + 1] = yOffset + (Math.random() - 0.5) * 20 // Y
+      positions[i * 3 + 2] = (Math.random() - 0.5) * zRange // Z
 
-      const brightness = 0.3 + Math.random() * 0.7
-      const isCyan = Math.random() > 0.85
-      colors[i * 3] = isCyan ? 0 : brightness
-      colors[i * 3 + 1] = isCyan ? brightness * 0.9 : brightness
+      // Claras: pure white/grey with varying brightness
+      const brightness = 0.5 + Math.random() * 0.5
+
+      colors[i * 3] = brightness
+      colors[i * 3 + 1] = brightness
       colors[i * 3 + 2] = brightness
-
-      sizes[i] = Math.random() * 0.06 + 0.01
     }
 
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     return geo
-  }, [])
+  }
 
-  useFrame(() => {
-    if (!pointsRef.current) return
+  // Memoize so they only construct once
+  const geo1 = useMemo(() => createLayer(count1, 80, -5), [])
+  const geo2 = useMemo(() => createLayer(count2, 80, -15), [])
+
+  useFrame((state) => {
     const isPlaying = phase === 'playing' || phase === 'boss-warning'
-    const speed = isPlaying ? 0.15 : 0.03
+    // Increase speed while playing to give a sensation of zooming forward
+    const speedMultiplier = isPlaying ? 0.6 : 0.1
 
-    const posAttr = pointsRef.current.geometry.attributes.position as THREE.BufferAttribute
-    const arr = posAttr.array as Float32Array
+    if (pointsRef1.current) {
+      const posAttr = pointsRef1.current.geometry.attributes.position as THREE.BufferAttribute
+      const arr = posAttr.array as Float32Array
+      // Layer 1 is faster (foreground)
+      const speed = 0.5 * speedMultiplier
 
-    for (let i = 0; i < count; i++) {
-      arr[i * 3 + 2] -= speed
-      if (arr[i * 3 + 2] < -30) {
-        arr[i * 3 + 2] = 30
-        arr[i * 3] = (Math.random() - 0.5) * 50
+      for (let i = 0; i < count1; i++) {
+        arr[i * 3 + 2] -= speed // Move from top to bottom
+        if (arr[i * 3 + 2] < -40) {
+          arr[i * 3 + 2] = 40 // Wrap to top
+          arr[i * 3] = (Math.random() - 0.5) * 80 // Randomize X again
+        }
       }
+      posAttr.needsUpdate = true
     }
-    posAttr.needsUpdate = true
+
+    if (pointsRef2.current) {
+      const posAttr = pointsRef2.current.geometry.attributes.position as THREE.BufferAttribute
+      const arr = posAttr.array as Float32Array
+      // Layer 2 is slower (background)
+      const speed = 0.15 * speedMultiplier
+
+      for (let i = 0; i < count2; i++) {
+        arr[i * 3 + 2] -= speed // Move from top to bottom
+        if (arr[i * 3 + 2] < -40) {
+          arr[i * 3 + 2] = 40 // Wrap to top
+          arr[i * 3] = (Math.random() - 0.5) * 80
+        }
+      }
+      posAttr.needsUpdate = true
+    }
   })
 
   return (
-    <points ref={pointsRef} geometry={geometry}>
-      <pointsMaterial size={0.08} vertexColors transparent opacity={0.8} sizeAttenuation />
-    </points>
+    <group>
+      <points ref={pointsRef1} geometry={geo1}>
+        {/* Slightly larger, clear white points */}
+        <pointsMaterial size={0.12} vertexColors transparent opacity={0.8} sizeAttenuation={true} />
+      </points>
+      <points ref={pointsRef2} geometry={geo2}>
+        {/* Smaller, clear white points */}
+        <pointsMaterial size={0.06} vertexColors transparent opacity={0.5} sizeAttenuation={false} />
+      </points>
+    </group>
   )
 }

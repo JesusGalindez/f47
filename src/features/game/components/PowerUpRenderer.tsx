@@ -13,6 +13,7 @@ const PU_COLORS: Record<PowerUpType, string> = {
   nuke: '#ff2040',
   life: '#ff00ff',
   xp: '#ffff00',
+  special: '#ffffff',
 }
 
 const PU_LABELS: Record<PowerUpType, string> = {
@@ -22,6 +23,7 @@ const PU_LABELS: Record<PowerUpType, string> = {
   nuke: 'N',
   life: '+',
   xp: 'XP',
+  special: '★',
 }
 
 function PowerUpMesh({ type }: { type: PowerUpType }) {

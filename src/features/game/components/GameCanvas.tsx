@@ -3,7 +3,9 @@
 import { Suspense, useEffect, useCallback } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { AdaptiveDpr } from '@react-three/drei'
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
+import { EffectComposer, Bloom, Vignette, ChromaticAberration } from '@react-three/postprocessing'
+import { BlendFunction } from 'postprocessing'
+import * as THREE from 'three'
 import { PlayerShip } from './PlayerShip'
 import { EnemyRenderer } from './EnemyRenderer'
 import { BulletRenderer } from './BulletRenderer'
@@ -19,6 +21,22 @@ import { GameHUD } from './GameHUD'
 import { GameMenu } from './GameMenu'
 import { useGameStore } from '../stores/gameStore'
 import { soundManager } from '@/lib/sounds'
+
+function SpecialEffects() {
+  const bulletTimeActive = useGameStore((s) => s.bulletTimeActive)
+  const offset = bulletTimeActive ? 0.015 : 0
+
+  return (
+    <EffectComposer>
+      <Bloom luminanceThreshold={0.4} luminanceSmoothing={0.8} intensity={1.2} />
+      <ChromaticAberration
+        blendFunction={BlendFunction.NORMAL}
+        offset={new THREE.Vector2(offset, offset)}
+      />
+      <Vignette offset={0.1} darkness={bulletTimeActive ? 0.8 : 0.6} />
+    </EffectComposer>
+  )
+}
 
 export function GameCanvas() {
   useEffect(() => {
@@ -111,11 +129,7 @@ export function GameCanvas() {
           )}
 
           <GameLoop />
-
-          <EffectComposer>
-            <Bloom luminanceThreshold={0.4} luminanceSmoothing={0.8} intensity={1.2} />
-            <Vignette offset={0.1} darkness={0.6} />
-          </EffectComposer>
+          <SpecialEffects />
         </Suspense>
         <AdaptiveDpr pixelated />
       </Canvas>

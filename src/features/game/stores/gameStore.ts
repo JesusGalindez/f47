@@ -12,6 +12,7 @@ import type {
   EnemyType,
   Vec3,
   WaveConfig,
+  Upgrades,
 } from '../types/game'
 import { ENEMY_CONFIGS, WEAPON_CONFIGS, WEAPON_NAMES, XP_PER_LEVEL } from '../types/game'
 import { LEVEL_WAVES, generateInfiniteWave } from '../systems/waves'
@@ -36,6 +37,13 @@ interface GameState {
   totalKills: number
   controlMode: 'keyboard' | 'mouse' | 'gyro'
 
+  credits: number
+  upgrades: Upgrades
+  specialAttackCharge: number
+  bulletTimeActive: boolean
+  bulletTimeMeter: number
+  showBossWarning: boolean
+
   // Tilt/Gyro state
   tiltX: number
   tiltY: number
@@ -58,6 +66,7 @@ interface GameState {
   startGame: () => void
   pauseGame: () => void
   resumeGame: () => void
+  resetToMenu: () => void
   gameOver: () => void
   setKey: (key: string, down: boolean) => void
   update: (delta: number) => void
@@ -67,22 +76,30 @@ interface GameState {
   setTilt: (x: number, y: number) => void
   setTouchInput: (x: number | null, z: number | null) => void
   setGyroInput: (x: number | null, z: number | null) => void
+  buyUpgrade: (type: keyof Upgrades, cost: number) => void
+  activateSpecial: () => void
 }
 
-function createDefaultPlayer(): PlayerState {
+function createDefaultPlayer(upgrades: Upgrades): PlayerState {
+  const drones: Drone[] = []
+  if (upgrades.passiveDrones >= 1) drones.push({ id: uid(), offset: { x: -1.2, y: 0, z: -0.5 }, shootTimer: 0 })
+  if (upgrades.passiveDrones >= 2) drones.push({ id: uid(), offset: { x: 1.2, y: 0, z: -0.5 }, shootTimer: 0 })
+
   return {
     position: { x: 0, y: 0, z: -12 },
-    speed: 8,
-    baseSpeed: 8,
-    weaponLevel: 1 as WeaponLevel,
+    speed: 8 + (upgrades.baseSpeedLevel - 1) * 1.5,
+    baseSpeed: 8 + (upgrades.baseSpeedLevel - 1) * 1.5,
+    weaponLevel: (Math.min(upgrades.startWeaponLevel, 6)) as WeaponLevel,
     shieldHp: 0,
     maxShield: 3,
-    lives: 3,
+    lives: 3 + (upgrades.baseLifeLevel - 1),
     invincibleTimer: 0,
     shootCooldown: 0,
-    drones: [],
+    drones,
   }
 }
+
+const defaultUpgrades: Upgrades = { baseSpeedLevel: 1, baseLifeLevel: 1, startWeaponLevel: 1, passiveDrones: 0 }
 
 export const useGameStore = create<GameState>((set, get) => ({
   phase: 'menu',
@@ -100,10 +117,18 @@ export const useGameStore = create<GameState>((set, get) => ({
   xpLevel: 1,
   totalKills: 0,
   controlMode: 'keyboard',
+
+  credits: typeof window !== 'undefined' ? Number(localStorage.getItem('f47-credits') || '0') : 0,
+  upgrades: typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('f47-upgrades') || JSON.stringify(defaultUpgrades)) : defaultUpgrades,
+  specialAttackCharge: 0,
+  bulletTimeActive: false,
+  bulletTimeMeter: 100,
+  showBossWarning: false,
+
   tiltX: 0,
   tiltY: 0,
 
-  player: createDefaultPlayer(),
+  player: createDefaultPlayer(defaultUpgrades),
   bullets: [],
   enemies: [],
   powerUps: [],
@@ -119,6 +144,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   startGame: () => {
     nextId = 0
+    const upgrades = get().upgrades
     set({
       phase: 'playing',
       score: 0,
@@ -132,7 +158,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       xp: 0,
       xpLevel: 1,
       totalKills: 0,
-      player: createDefaultPlayer(),
+      specialAttackCharge: 0,
+      bulletTimeActive: false,
+      bulletTimeMeter: 100,
+      showBossWarning: false,
+      player: createDefaultPlayer(upgrades),
       bullets: [],
       enemies: [],
       powerUps: [],
@@ -149,6 +179,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   resumeGame: () => {
     if (get().phase === 'paused') set({ phase: 'playing' })
+  },
+
+  resetToMenu: () => {
+    set({ phase: 'menu' })
   },
 
   gameOver: () => {
@@ -194,34 +228,102 @@ export const useGameStore = create<GameState>((set, get) => ({
   setGyroInput: (x, z) =>
     set({ gyroTarget: x !== null && z !== null ? { x, z } : null }),
 
+  buyUpgrade: (type, cost) => {
+    const s = get()
+    if (s.credits >= cost) {
+      const newUpgrades = { ...s.upgrades, [type]: s.upgrades[type] + 1 }
+      const newCredits = s.credits - cost
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('f47-credits', String(newCredits))
+        localStorage.setItem('f47-upgrades', JSON.stringify(newUpgrades))
+      }
+      set({ credits: newCredits, upgrades: newUpgrades })
+    }
+  },
+
+  activateSpecial: () => {
+    const state = get()
+    if (state.specialAttackCharge >= 100) {
+      set({ specialAttackCharge: 0, nukeFlashTimer: 1.0, screenShake: 1.5 })
+      const { enemies, explosions, score, totalKills, upgrades } = get()
+      let newScore = score
+      let newKills = totalKills
+      const newExplosions = [...explosions]
+
+      const newEnemies = enemies.filter(e => {
+        if (e.type !== 'boss') {
+          newScore += e.points
+          newKills++
+          newExplosions.push({
+            id: uid(),
+            position: { ...e.position },
+            scale: 0,
+            maxScale: 2.0,
+            opacity: 1,
+            color: '#ff6a00',
+          })
+          return false
+        } else {
+          e.hp -= 30 + upgrades.startWeaponLevel * 10
+          return true
+        }
+      })
+
+      set({ enemies: newEnemies, explosions: newExplosions, score: newScore, totalKills: newKills })
+    }
+  },
+
   update: (delta) => {
     const state = get()
     if (state.phase !== 'playing') return
 
-    const clampedDelta = Math.min(delta, 0.05)
+    const baseDelta = Math.min(delta, 0.05)
+
+    // --- Bullet Time logic ---
+    let { bulletTimeActive, bulletTimeMeter, specialAttackCharge, showBossWarning } = state
+    const { keys } = state
+
+    // Shift activates bullet time
+    if (keys['Shift'] && bulletTimeMeter > 0) {
+      bulletTimeActive = true
+      bulletTimeMeter -= baseDelta * 30 // Drains in ~3.3 seconds fully
+    } else {
+      bulletTimeActive = false
+      bulletTimeMeter = Math.min(100, bulletTimeMeter + baseDelta * 5) // Recharges slowly
+    }
+
+    // Time modifier for enemies and bullets
+    const timeMult = bulletTimeActive ? 0.3 : 1.0
+    const clampedDelta = baseDelta * timeMult
 
     // --- Boss warning timer ---
     let bossWarningTimer = state.bossWarningTimer
     if (bossWarningTimer > 0) {
-      bossWarningTimer -= clampedDelta
+      bossWarningTimer -= baseDelta
+      showBossWarning = true
       if (bossWarningTimer <= 0) {
         bossWarningTimer = 0
+        showBossWarning = false
       } else {
-        set({ bossWarningTimer })
+        set({ bossWarningTimer, showBossWarning, bulletTimeActive, bulletTimeMeter })
         return
       }
     }
 
     // --- Nuke flash ---
-    let nukeFlashTimer = Math.max(0, state.nukeFlashTimer - clampedDelta)
+    let nukeFlashTimer = Math.max(0, state.nukeFlashTimer - baseDelta)
 
     // --- Screen shake decay ---
     let screenShake = state.screenShake * 0.9
     if (screenShake < 0.01) screenShake = 0
 
+    // Activate special if bound to F
+    if (keys['f']) {
+      get().activateSpecial()
+    }
+
     // --- Player movement ---
     const player = { ...state.player, position: { ...state.player.position } }
-    const { keys } = state
 
     // Touch input (highest priority — direct position)
     if (state.touchTarget) {
@@ -235,10 +337,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
     // Keyboard controls
     else {
-      if (keys['ArrowLeft'] || keys['a']) player.position.x -= player.speed * clampedDelta
-      if (keys['ArrowRight'] || keys['d']) player.position.x += player.speed * clampedDelta
-      if (keys['ArrowUp'] || keys['w']) player.position.z -= player.speed * clampedDelta
-      if (keys['ArrowDown'] || keys['s']) player.position.z += player.speed * clampedDelta
+      // Player movement uses baseDelta, not clampedDelta (so player isn't slowed down by Bullet Time)
+      if (keys['ArrowLeft'] || keys['a']) player.position.x -= player.speed * baseDelta
+      if (keys['ArrowRight'] || keys['d']) player.position.x += player.speed * baseDelta
+      if (keys['ArrowUp'] || keys['w']) player.position.z -= player.speed * baseDelta
+      if (keys['ArrowDown'] || keys['s']) player.position.z += player.speed * baseDelta
     }
 
     player.position.x = Math.max(-9.5, Math.min(9.5, player.position.x))
@@ -246,12 +349,12 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Invincibility timer
     if (player.invincibleTimer > 0) {
-      player.invincibleTimer -= clampedDelta
+      player.invincibleTimer -= baseDelta
     }
 
     // --- Shooting ---
     let newBullets: Bullet[] = [...state.bullets]
-    player.shootCooldown -= clampedDelta
+    player.shootCooldown -= baseDelta
 
     const shouldFire = state.autoFire || keys[' ']
     if (shouldFire && player.shootCooldown <= 0) {
@@ -358,7 +461,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       // Boss warning
       if (waveConfig.isBoss) {
-        bossWarningTimer = 2.0
+        bossWarningTimer = 3.0
+        showBossWarning = true
       }
 
       const queue: typeof waveSpawnQueue = []
@@ -374,7 +478,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // --- Update enemies ---
     let newExplosions = [...state.explosions]
-    let { score, combo, comboTimer, xp, xpLevel, totalKills } = state
+    let { score, combo, comboTimer, xp, xpLevel, totalKills, credits } = state
 
     // Combo timer
     comboTimer -= clampedDelta
@@ -494,7 +598,13 @@ export const useGameStore = create<GameState>((set, get) => ({
             score += Math.ceil(enemy.points * comboMultiplier)
             xp += enemy.xp
             totalKills++
+            credits += enemy.type === 'boss' ? 50 : 1 // 1 credit per normal, 50 per boss
+            specialAttackCharge = Math.min(100, specialAttackCharge + 2)
             waveEnemiesRemaining = Math.max(0, waveEnemiesRemaining - 1)
+
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('f47-credits', String(credits))
+            }
 
             newExplosions.push({
               id: uid(),
@@ -511,8 +621,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
             // Power-up drop
             if (Math.random() < enemy.dropChance) {
-              const types: PowerUpType[] = ['weapon', 'shield', 'speed', 'xp', 'life', 'nuke']
-              const weights = [30, 20, 15, 20, 5, 10]
+              const types: PowerUpType[] = ['weapon', 'shield', 'speed', 'xp', 'life', 'nuke', 'special']
+              const weights = [30, 20, 15, 20, 5, 10, 8]
               let roll = Math.random() * weights.reduce((a, b) => a + b, 0)
               let selectedType: PowerUpType = 'weapon'
               for (let i = 0; i < types.length; i++) {
@@ -566,6 +676,7 @@ export const useGameStore = create<GameState>((set, get) => ({
                 xp,
                 xpLevel,
                 totalKills,
+                credits,
                 bullets: [],
                 enemies: [],
                 powerUps: [],
@@ -576,8 +687,12 @@ export const useGameStore = create<GameState>((set, get) => ({
                 waveSpawnQueue,
                 waveSpawnTimer,
                 bossWarningTimer,
+                showBossWarning,
                 nukeFlashTimer,
                 screenShake,
+                bulletTimeActive,
+                bulletTimeMeter,
+                specialAttackCharge,
               })
               get().gameOver()
               return
@@ -618,6 +733,7 @@ export const useGameStore = create<GameState>((set, get) => ({
                 xp,
                 xpLevel,
                 totalKills,
+                credits,
                 bullets: [],
                 enemies: [],
                 powerUps: [],
@@ -628,8 +744,12 @@ export const useGameStore = create<GameState>((set, get) => ({
                 waveSpawnQueue,
                 waveSpawnTimer,
                 bossWarningTimer,
+                showBossWarning,
                 nukeFlashTimer,
                 screenShake,
+                bulletTimeActive,
+                bulletTimeMeter,
+                specialAttackCharge,
               })
               get().gameOver()
               return
@@ -693,6 +813,9 @@ export const useGameStore = create<GameState>((set, get) => ({
           case 'xp':
             xp += 100
             break
+          case 'special':
+            specialAttackCharge = 100
+            break
         }
       }
     })
@@ -754,9 +877,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       xp,
       xpLevel,
       totalKills,
+      credits,
       bossWarningTimer,
+      showBossWarning,
       nukeFlashTimer,
       screenShake,
+      bulletTimeActive,
+      bulletTimeMeter,
+      specialAttackCharge,
     })
   },
 }))

@@ -11,11 +11,19 @@ export const WEAPON_NAMES: Record<WeaponLevel, WeaponName> = {
   6: 'missiles',
 }
 
-export type PowerUpType = 'weapon' | 'shield' | 'speed' | 'nuke' | 'life' | 'xp'
+export type PowerUpType = 'weapon' | 'shield' | 'speed' | 'nuke' | 'life' | 'xp' | 'special'
 
 export type EnemyType = 'grunt' | 'fast' | 'tank' | 'kamikaze' | 'sniper' | 'boss'
 
-export type GamePhase = 'menu' | 'playing' | 'paused' | 'gameover' | 'victory' | 'boss-warning'
+export type GamePhase = 'menu' | 'playing' | 'paused' | 'gameover' | 'victory' | 'boss-warning' | 'shop'
+
+export interface Upgrades {
+  baseSpeedLevel: number
+  baseLifeLevel: number
+  startWeaponLevel: number
+  passiveDrones: number
+}
+
 
 export interface Vec3 {
   x: number

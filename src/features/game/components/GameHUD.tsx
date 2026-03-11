@@ -17,6 +17,10 @@ export function GameHUD() {
   const controlMode = useGameStore((s) => s.controlMode)
   const nukeFlashTimer = useGameStore((s) => s.nukeFlashTimer)
   const bossWarningTimer = useGameStore((s) => s.bossWarningTimer)
+  const showBossWarning = useGameStore((s) => s.showBossWarning)
+  const specialAttackCharge = useGameStore((s) => s.specialAttackCharge)
+  const bulletTimeMeter = useGameStore((s) => s.bulletTimeMeter)
+  const boss = useGameStore((s) => s.enemies.find((e) => e.type === 'boss'))
 
   if (phase !== 'playing' && phase !== 'paused' && phase !== 'boss-warning') return null
 
@@ -43,20 +47,20 @@ export function GameHUD() {
 
       {/* Boss warning */}
       <AnimatePresence>
-        {bossWarningTimer > 0 && (
+        {showBossWarning && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: [0, 1, 0, 1, 0, 1] }}
             exit={{ opacity: 0 }}
             transition={{ duration: 2 }}
-            className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none"
+            className="fixed inset-0 z-40 bg-[var(--danger)]/20 flex items-center justify-center pointer-events-none"
           >
             <div className="text-center">
-              <div className="hud-text text-4xl text-[var(--danger)] tracking-[0.3em] animate-pulse">
+              <div className="hud-text text-5xl text-[var(--danger)] tracking-[0.4em] animate-pulse">
                 ⚠ WARNING ⚠
               </div>
-              <div className="hud-text text-lg text-[var(--orange-tactical)] mt-2 tracking-widest">
-                BOSS APPROACHING
+              <div className="hud-text text-2xl text-[var(--orange-tactical)] mt-4 tracking-widest bg-black/50 p-2 border-y border-[var(--orange-tactical)]/50">
+                CAPITAL SHIP DETECTED
               </div>
             </div>
           </motion.div>
@@ -116,6 +120,28 @@ export function GameHUD() {
             </AnimatePresence>
           </div>
         </div>
+
+        {/* Boss Health Bar */}
+        <AnimatePresence>
+          {boss && (
+            <motion.div
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -50, opacity: 0 }}
+              className="mt-2 flex flex-col items-center justify-center w-full max-w-md mx-auto"
+            >
+              <div className="hud-text text-[10px] text-[var(--danger)] tracking-[0.4em] mb-1">CAPITAL SHIP</div>
+              <div className="w-full h-2 border border-[var(--danger)]/50 bg-black/80 relative">
+                <motion.div
+                  className="absolute left-0 top-0 bottom-0 bg-[var(--danger)]"
+                  initial={{ width: '100%' }}
+                  animate={{ width: `${(boss.hp / boss.maxHp) * 100}%` }}
+                  transition={{ type: 'spring', bounce: 0, duration: 0.2 }}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Bottom HUD */}
@@ -158,6 +184,17 @@ export function GameHUD() {
                 CTRL: {controlMode.toUpperCase()}
               </button>
             </div>
+
+            {/* SPECIAL ATTACK */}
+            <div className="ml-4">
+              <div className="hud-text text-[9px] text-[var(--orange-tactical)]">SPECIAL [F]</div>
+              <div className="w-24 h-1.5 bg-black/50 border border-[var(--orange-tactical)]/50 mt-1 flex">
+                <div
+                  className={`h-full ${specialAttackCharge >= 100 ? 'bg-white animate-pulse' : 'bg-[var(--orange-tactical)]'}`}
+                  style={{ width: `${specialAttackCharge}%` }}
+                />
+              </div>
+            </div>
           </div>
 
           {/* Weapon */}
@@ -197,6 +234,17 @@ export function GameHUD() {
                 CCA ×{player.drones.length}
               </div>
             )}
+
+            {/* BULLET TIME */}
+            <div className="mt-3">
+              <div className="hud-text text-[9px] text-[#aa44ff]">FOCUS [SHIFT]</div>
+              <div className="w-24 h-1.5 bg-black/50 border border-[#aa44ff]/50 mt-1 ml-auto flex">
+                <div
+                  className="h-full bg-[#aa44ff]"
+                  style={{ width: `${Math.max(0, bulletTimeMeter)}%` }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>

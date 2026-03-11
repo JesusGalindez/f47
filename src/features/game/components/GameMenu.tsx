@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../stores/gameStore'
+import type { Upgrades } from '../types/game'
 import Link from 'next/link'
 
 function Leaderboard() {
@@ -126,12 +127,12 @@ function GameOverScreen() {
             >
               RETRY
             </button>
-            <Link
-              href="/"
+            <button
+              onClick={() => useGameStore.getState().resetToMenu()}
               className="px-6 py-2 hud-text text-sm border border-[var(--text-secondary)]/30 text-[var(--text-secondary)] hover:border-[var(--cyan-reactive)] hover:text-[var(--cyan-reactive)] transition-colors tracking-widest"
             >
-              EXIT
-            </Link>
+              MAIN MENU
+            </button>
           </div>
         </motion.div>
       </div>
@@ -139,13 +140,72 @@ function GameOverScreen() {
   )
 }
 
+function ShopScreen({ onClose }: { onClose: () => void }) {
+  const credits = useGameStore((s) => s.credits)
+  const upgrades = useGameStore((s) => s.upgrades)
+  const buyUpgrade = useGameStore((s) => s.buyUpgrade)
+
+  const items: { id: keyof Upgrades; name: string; desc: string; cost: number; level: number; max: number }[] = [
+    { id: 'baseSpeedLevel', name: 'ENGINE TUNING', desc: 'Increases base speed (+1.5)', cost: upgrades.baseSpeedLevel * 100, level: upgrades.baseSpeedLevel, max: 5 },
+    { id: 'baseLifeLevel', name: 'REINFORCED CHASSIS', desc: 'Increases starting lives (+1)', cost: upgrades.baseLifeLevel * 250, level: upgrades.baseLifeLevel, max: 4 },
+    { id: 'startWeaponLevel', name: 'WEAPON CALIBRATION', desc: 'Start with better weapon', cost: upgrades.startWeaponLevel * 400, level: upgrades.startWeaponLevel, max: 3 },
+    { id: 'passiveDrones', name: 'COMBAT DRONES', desc: 'Start with assist drones', cost: (upgrades.passiveDrones + 1) * 600, level: upgrades.passiveDrones, max: 2 },
+  ]
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center"
+    >
+      <div className="hud-text text-3xl text-[var(--orange-tactical)] mb-2 tracking-[0.2em]">BLACK MARKET</div>
+      <div className="hud-text text-[var(--cyan-reactive)] mb-8 tracking-[0.2em]">CREDITS: {credits}</div>
+      <div className="space-y-4 max-w-xl w-full px-6">
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="border border-[var(--cyan-reactive)]/30 p-4 flex justify-between items-center bg-[var(--bg-dark)]/50"
+          >
+            <div>
+              <div className="hud-text text-[var(--text-primary)] tracking-widest text-sm">
+                {item.name} <span className="text-[var(--orange-tactical)]">LVL {item.level}</span>
+              </div>
+              <div className="hud-text text-[10px] text-[var(--text-secondary)] mt-1">{item.desc}</div>
+            </div>
+            {item.level >= item.max ? (
+              <div className="hud-text text-[var(--orange-tactical)] text-xs tracking-widest">MAXED</div>
+            ) : (
+              <button
+                onClick={() => buyUpgrade(item.id, item.cost)}
+                disabled={credits < item.cost}
+                className="px-4 py-2 hud-text text-xs border border-[var(--cyan-reactive)] text-[var(--cyan-reactive)] disabled:opacity-20 hover:bg-[var(--cyan-reactive)]/10 transition-colors tracking-widest"
+              >
+                BUY ({item.cost} CR)
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={onClose}
+        className="mt-12 px-10 py-3 hud-text text-sm border-2 border-[var(--text-secondary)] text-[var(--text-secondary)] hover:border-[var(--cyan-reactive)] hover:text-[var(--cyan-reactive)] transition-colors tracking-[0.3em]"
+      >
+        RETURN TO HANGAR
+      </button>
+    </motion.div>
+  )
+}
+
 export function GameMenu() {
   const phase = useGameStore((s) => s.phase)
   const startGame = useGameStore((s) => s.startGame)
+  const [showShop, setShowShop] = useState(false)
 
   if (phase === 'gameover') return <GameOverScreen />
 
   if (phase !== 'menu') return null
+
+  if (showShop) return <ShopScreen onClose={() => setShowShop(false)} />
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -178,11 +238,18 @@ export function GameMenu() {
             START MISSION
           </button>
 
+          <button
+            onClick={() => setShowShop(true)}
+            className="block mx-auto px-10 py-2 hud-text text-xs border border-[var(--orange-tactical)]/80 text-[var(--orange-tactical)] hover:bg-[var(--orange-tactical)]/10 transition-colors tracking-[0.2em]"
+          >
+            UPGRADES (SHOP)
+          </button>
+
           <Link
             href="/"
-            className="block mx-auto px-10 py-2 hud-text text-xs border border-[var(--text-secondary)]/30 text-[var(--text-secondary)] hover:border-[var(--cyan-reactive)] hover:text-[var(--cyan-reactive)] transition-colors tracking-widest"
+            className="block mx-auto px-10 py-2 hud-text text-xs border border-[var(--text-secondary)]/30 text-[var(--text-secondary)] hover:border-[var(--text-primary)] transition-colors tracking-widest"
           >
-            RETURN TO HANGAR
+            ABORT MISSION
           </Link>
         </motion.div>
 

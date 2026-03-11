@@ -2,7 +2,7 @@
 
 import { useRef, useMemo, useLayoutEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useGLTF } from '@react-three/drei'
+import { useGLTF, Trail } from '@react-three/drei'
 import * as THREE from 'three'
 import { useGameStore } from '../stores/gameStore'
 import { soundManager } from '@/lib/sounds'
@@ -91,6 +91,8 @@ export function PlayerShip() {
 
       <PlayerShield />
       <PlayerDrones />
+
+      {/* Engine Trails removed */}
     </group>
   )
 }
