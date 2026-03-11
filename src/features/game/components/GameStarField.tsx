@@ -41,17 +41,28 @@ export function GameStarField() {
   const geo1 = useMemo(() => createLayer(count1, 80, -5), [])
   const geo2 = useMemo(() => createLayer(count2, 80, -15), [])
 
-  useFrame((state) => {
+  const currentSpeed = useRef(0.1)
+
+  useFrame((state, delta) => {
     const isPlaying = phase === 'playing' || phase === 'boss-warning'
     const isGameOver = phase === 'gameover'
-    // Maintain a steady movement during gameplay, boss warning, and game over
-    const speedMultiplier = (isPlaying || isGameOver) ? 0.6 : 0.1
+    // Target base speeds
+    const targetSpeed = (isPlaying || isGameOver) ? 0.6 : 0.1
+
+    // Smoothly transition the speed over time
+    currentSpeed.current = THREE.MathUtils.lerp(currentSpeed.current, targetSpeed, delta * 2)
+
+    // Cap delta to prevent massive jumps when tab is inactive or during heavy renders
+    const safeDelta = Math.min(delta, 0.1)
+
+    // Factor to maintain the look of ~60fps
+    const timeFactor = safeDelta * 60
 
     if (pointsRef1.current) {
       const posAttr = pointsRef1.current.geometry.attributes.position as THREE.BufferAttribute
       const arr = posAttr.array as Float32Array
       // Layer 1 is faster (foreground)
-      const speed = 0.5 * speedMultiplier
+      const speed = 0.5 * currentSpeed.current * timeFactor
 
       for (let i = 0; i < count1; i++) {
         arr[i * 3 + 2] -= speed // Move from top to bottom
@@ -67,7 +78,7 @@ export function GameStarField() {
       const posAttr = pointsRef2.current.geometry.attributes.position as THREE.BufferAttribute
       const arr = posAttr.array as Float32Array
       // Layer 2 is slower (background)
-      const speed = 0.15 * speedMultiplier
+      const speed = 0.15 * currentSpeed.current * timeFactor
 
       for (let i = 0; i < count2; i++) {
         arr[i * 3 + 2] -= speed // Move from top to bottom
