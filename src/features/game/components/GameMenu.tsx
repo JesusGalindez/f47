@@ -208,16 +208,40 @@ function ShopScreen({ onClose }: { onClose: () => void }) {
   )
 }
 
+function RankingScreen({ onClose }: { onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center"
+    >
+      <div className="hud-text text-3xl text-[var(--cyan-reactive)] mb-2 tracking-[0.2em] uppercase">RANKING MUNDIAL</div>
+      <div className="hud-text text-[var(--text-secondary)] mb-8 tracking-[0.2em]">TOP 10 PILOTS</div>
+      <div className="w-full max-w-xl px-6">
+        <Leaderboard />
+      </div>
+      <button
+        onClick={onClose}
+        className="mt-12 px-10 py-3 hud-text text-sm border-2 border-[var(--text-secondary)] text-[var(--text-secondary)] hover:border-[var(--cyan-reactive)] hover:text-[var(--cyan-reactive)] transition-colors tracking-[0.3em]"
+      >
+        RETURN TO HANGAR
+      </button>
+    </motion.div>
+  )
+}
+
 export function GameMenu() {
   const phase = useGameStore((s) => s.phase)
   const startGame = useGameStore((s) => s.startGame)
   const [showShop, setShowShop] = useState(false)
+  const [showRanking, setShowRanking] = useState(false)
 
   if (phase === 'gameover') return <GameOverScreen />
 
   if (phase !== 'menu') return null
 
   if (showShop) return <ShopScreen onClose={() => setShowShop(false)} />
+  if (showRanking) return <RankingScreen onClose={() => setShowRanking(false)} />
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -257,6 +281,13 @@ export function GameMenu() {
             UPGRADES (SHOP)
           </button>
 
+          <button
+            onClick={() => setShowRanking(true)}
+            className="block mx-auto px-10 py-2 hud-text text-xs border border-[#aa44ff]/80 text-[#aa44ff] hover:bg-[#aa44ff]/10 transition-colors tracking-[0.2em]"
+          >
+            RANKING MUNDIAL
+          </button>
+
           <Link
             href="/"
             className="block mx-auto px-10 py-2 hud-text text-xs border border-[var(--text-secondary)]/30 text-[var(--text-secondary)] hover:border-[var(--text-primary)] transition-colors tracking-widest"
@@ -283,10 +314,6 @@ export function GameMenu() {
             </div>
             <div className="text-[var(--orange-tactical)]">AUTO-FIRE ENABLED</div>
           </div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2 }}>
-          <Leaderboard />
         </motion.div>
       </div>
     </div>
